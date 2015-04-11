@@ -15,6 +15,24 @@ var (
 )
 
 type EthernetHeader struct {
+	Destination, Source []byte
+	Type                uint16
+	//FCS                 int32
+}
+
+type IPHeader struct {
+	Version        byte
+	HeaderLength   byte
+	TypeOfService  int16
+	TotalLength    uint16
+	Identification uint16
+	Flags          byte // 3
+	FragmentOffset byte // 13
+	TimeToLive     int8
+	Protocol       int8
+	HeaderChecksum int16
+	Source         int32
+	Destination    int32
 }
 
 func init() {
@@ -40,12 +58,17 @@ func formatMac(b []byte) string {
 func main() {
 	reader := bufio.NewReader(file)
 
-	dstMacAddr := make([]byte, 6)
-	srcMacAddr := make([]byte, 6)
+	ethHead := EthernetHeader{
+		Destination: make([]byte, 6),
+		Source:      make([]byte, 6),
+	}
 
-	var packLen int32
+	ipHead := IPHeader{}
+
+	var packLen uint32
 	var count int
 
+	m := map[string]bool{}
 	for {
 		count++
 
@@ -55,29 +78,50 @@ func main() {
 		}
 
 		if verbose {
-			fmt.Printf("\tGot new package with length %v\n", packLen)
-			fmt.Printf("\t( Layer 2 :: Ethernet Header )\n")
+			fmt.Printf("\t-- Total Length: %v --\n", packLen)
 		}
 
-		reader.Read(dstMacAddr)
-		reader.Read(srcMacAddr)
+		reader.Read(ethHead.Destination)
+		reader.Read(ethHead.Source)
+		binary.Read(reader, binary.BigEndian, &ethHead.Type)
+
+		m[formatMac(ethHead.Destination)] = true
+		m[formatMac(ethHead.Source)] = true
+		if verbose {
+			fmt.Printf("\t-- Layer 2 :: Ethernet Header --\n")
+			fmt.Printf("\t\tDestination: %v\n", formatMac(ethHead.Destination))
+			fmt.Printf("\t\tSource: %v\n", formatMac(ethHead.Source))
+			fmt.Printf("\t\tType: %#X\n", ethHead.Type)
+		}
+
+		firstByte, _ := reader.ReadByte()
+
+		ipHead.Version = firstByte >> 4
+		ipHead.HeaderLength = firstByte & 0x0F
+
+		binary.Read(reader, binary.BigEndian, &ipHead.TypeOfService)
+		binary.Read(reader, binary.BigEndian, &ipHead.TotalLength)
+		binary.Read(reader, binary.BigEndian, &ipHead.Identification)
+
+		fragmentByte, _ := reader.ReadByte()
 
 		if verbose {
-			fmt.Printf("\t\tDestination Mac Address: %v\n", formatMac(dstMacAddr))
-			fmt.Printf("\t\tSource Mac Address: %v\n", formatMac(srcMacAddr))
-			fmt.Printf("\t\t( Layer 3 :: IP Header )\n")
+			fmt.Printf("\t\t-- Layer 3 :: IP Header --\n")
+			fmt.Printf("\t\t\tVersion: %v\n", ipHead.Version)
+			fmt.Printf("\t\t\tHeader Length: %v\n", ipHead.HeaderLength)
+			fmt.Printf("\t\t\tType of Service: %v\n", ipHead.TypeOfService)
+			fmt.Printf("\t\t\tTotal Length: %v\n", ipHead.TotalLength)
+			fmt.Printf("\t\t\tIdentification: %v\n", ipHead.Identification)
+
 		}
 
-		if verbose {
-			fmt.Printf("\t\t\t( Layer 4 :: TCP Header )\n")
-		}
-
-		otherData := make([]byte, packLen+2-12)
+		otherData := make([]byte, packLen-14-1-6-1)
 		reader.Read(otherData)
 
-		if count == 50 {
+		if count == 4 {
 			break
 		}
 	}
 	fmt.Printf("Handled %v packages\n", count)
+	fmt.Printf("%v unique MAC adresses\n", len(m))
 }
