@@ -49,7 +49,10 @@ func main() {
 	for {
 		count++
 
-		binary.Read(reader, binary.LittleEndian, &packLen)
+		if err := binary.Read(reader, binary.LittleEndian, &packLen); err != nil {
+			fmt.Println("Reached end")
+			break
+		}
 
 		if verbose {
 			fmt.Printf("\tGot new package with length %v\n", packLen)
@@ -69,7 +72,12 @@ func main() {
 			fmt.Printf("\t\t\t( Layer 4 :: TCP Header )\n")
 		}
 
-		break
+		otherData := make([]byte, packLen+2-12)
+		reader.Read(otherData)
+
+		if count == 50 {
+			break
+		}
 	}
 	fmt.Printf("Handled %v packages\n", count)
 }
