@@ -52,7 +52,7 @@ int main(int argc,char **argv)
     bpf_u_int32 pNet;             /* ip address*/
 
     // open file
-    file_handle = open("output", O_APPEND|O_CREAT|O_WRONLY);
+    file_handle = open("output", O_APPEND|O_CREAT|O_WRONLY, 0644);
     if (file_handle< 0)
     {
 	printf("Error while opening file\n");
