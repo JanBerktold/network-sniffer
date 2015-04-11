@@ -17,10 +17,10 @@ int file_handle;
 void callback(u_char *useless, const struct pcap_pkthdr* pkthdr, const u_char* packet)
 {
 	static int count = 1;
-	char log[4+1+pkthdr->len+2];
+	char log[4+pkthdr->len+2];
 
 	memcpy(log, &pkthdr->len, 4);
-	memcpy(log+5, packet, pkthdr->len);
+	memcpy(log+4, packet, pkthdr->len);
  	log[sizeof(log)-1]='\0';
 
 	printf("%lu", sizeof(pkthdr->len));
@@ -35,7 +35,7 @@ void callback(u_char *useless, const struct pcap_pkthdr* pkthdr, const u_char* p
 
 void shutdown_handler(int sig)
 {
-	if (file_handle > -1) 
+	if (file_handle > -1)
 	{
 		close(file_handle);
 		file_handle = -1;
@@ -53,12 +53,12 @@ int main(int argc,char **argv)
 
     // open file
     file_handle = open("output", O_APPEND|O_CREAT|O_WRONLY);
-    if (file_handle< 0) 
+    if (file_handle< 0)
     {
 	printf("Error while opening file\n");
 	return -1;
     }
-   
+
     dev = pcap_lookupdev(errbuf);
 
     // If something was not provided
