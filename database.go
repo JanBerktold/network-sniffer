@@ -103,7 +103,7 @@ func main() {
 		binary.Read(reader, binary.BigEndian, &ipHead.TotalLength)
 		binary.Read(reader, binary.BigEndian, &ipHead.Identification)
 
-		fragmentByte, _ := reader.ReadByte()
+//		fragmentByte, _ := reader.ReadByte()
 
 		if verbose {
 			fmt.Printf("\t\t-- Layer 3 :: IP Header --\n")
@@ -115,12 +115,12 @@ func main() {
 
 		}
 
-		otherData := make([]byte, packLen-14-1-6-1)
+		otherData := make([]byte, packLen-14-1-6)
 		reader.Read(otherData)
 
-		if count == 4 {
-			break
-		}
+//		if count == 4 {
+//			break
+//		}
 	}
 	fmt.Printf("Handled %v packages\n", count)
 	fmt.Printf("%v unique MAC adresses\n", len(m))
