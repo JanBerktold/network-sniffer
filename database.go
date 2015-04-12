@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"compress/gzip"
 )
 
 var (
@@ -56,7 +57,11 @@ func formatMac(b []byte) string {
 }
 
 func main() {
-	reader := bufio.NewReader(file)
+	gReader, err := gzip.NewReader(file)
+	if err != nil {
+		fmt.Printf("Failed error while opening file: %q\n", err.Error())
+	}
+	reader := bufio.NewReader(gReader)
 
 	ethHead := EthernetHeader{
 		Destination: make([]byte, 6),

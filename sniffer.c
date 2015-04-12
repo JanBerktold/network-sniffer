@@ -11,33 +11,48 @@
 #include <string.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <zlib.h>
 
-int file_handle;
+unsigned long const static WRITE_BUFFER_SIZE = 1024 * 10;
+
+gzFile file_handle;
+char* write_buffer;
+int write_progress = 0;
+
+void flush_data()
+{
+	int written_bytes = gzwrite(file_handle, write_buffer, write_progress);
+	if(written_bytes <= 0) {
+		printf("something went wrong while writing %d", written_bytes);
+		exit(-1);
+	}
+	printf("wrote %d bytes from %d buffer\n", written_bytes, write_progress);
+	write_progress = 0;
+}
 
 void callback(u_char *useless, const struct pcap_pkthdr* pkthdr, const u_char* packet)
 {
 	static int count = 1;
-	char log[4+pkthdr->len];
+	unsigned long data_size = 4+pkthdr->len;
 
-	memcpy(log, &pkthdr->len, 4);
-	memcpy(log+4, packet, pkthdr->len);
-
-	printf("%lu", sizeof(pkthdr->len));
-	if(write(file_handle, log, sizeof(log)) <= 0)
-	{
-		printf("something went wrong %s\n", strerror(errno));
-		exit(-1);
+	if (write_progress + data_size > WRITE_BUFFER_SIZE) {
+		flush_data();	
 	}
+	char* log = malloc(data_size);
 
-  printf("Packet number [%d], length of this packet is: %d\n", count++, pkthdr->len);
+	memcpy(write_buffer+write_progress, &pkthdr->len, 4);
+	memcpy(write_buffer+write_progress+4, packet, pkthdr->len);
+	
+	write_progress += data_size;
+//	printf("Packet number [%d], length of this packet is: %d\n", count++, pkthdr->len);
 }
 
 void shutdown_handler(int sig)
 {
-	if (file_handle > -1)
+	if (file_handle)
 	{
-		close(file_handle);
-		file_handle = -1;
+		flush_data();	
+		gzclose(file_handle);
 		exit(0);
 	}
 }
@@ -50,12 +65,14 @@ int main(int argc,char **argv)
 	bpf_u_int32 pMask;            /* subnet mask */
 	bpf_u_int32 pNet;             /* ip address*/
 
+	write_buffer = malloc(WRITE_BUFFER_SIZE);
+
 	// open file
-	file_handle = open("output", O_APPEND|O_CREAT|O_WRONLY, 0644);
-	if (file_handle< 0)
+	file_handle = gzopen("output", "wb");
+	if (!file_handle)
 	{
-	printf("Error while opening file\n");
-	return -1;
+		printf("Error while opening file\n");
+		return -1;
 	}
 
 	dev = pcap_lookupdev(errbuf);
