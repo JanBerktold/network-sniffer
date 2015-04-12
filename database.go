@@ -2,11 +2,11 @@ package main
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/binary"
 	"flag"
 	"fmt"
 	"os"
-	"compress/gzip"
 )
 
 var (
@@ -24,16 +24,17 @@ type EthernetHeader struct {
 type IPHeader struct {
 	Version        byte
 	HeaderLength   byte
-	TypeOfService  int16
+	TypeOfService  int8
 	TotalLength    uint16
 	Identification uint16
-	Flags          byte // 3
+	ForbidFragment bool
+	MoreFragments  bool
 	FragmentOffset byte // 13
-	TimeToLive     int8
-	Protocol       int8
-	HeaderChecksum int16
-	Source         int32
-	Destination    int32
+	TimeToLive     uint8
+	Protocol       uint8
+	HeaderChecksum uint16
+	Source         uint32
+	Destination    uint32
 }
 
 func init() {
@@ -56,6 +57,11 @@ func formatMac(b []byte) string {
 	)
 }
 
+func formatIP(a uint32) string {
+	return fmt.Sprintf("%d.%d.%d.%d", byte(a>>24), byte(a>>16), byte(a>>8), byte(a))
+}
+
+// TODO(Jan Berktold): Implement FragmentOffset
 func main() {
 	gReader, err := gzip.NewReader(file)
 	if err != nil {
@@ -108,7 +114,20 @@ func main() {
 		binary.Read(reader, binary.BigEndian, &ipHead.TotalLength)
 		binary.Read(reader, binary.BigEndian, &ipHead.Identification)
 
-//		fragmentByte, _ := reader.ReadByte()
+		fragmentByte1, _ := reader.ReadByte()
+		reader.ReadByte() // second byte used for FragmentOffset
+
+		notFragment := fragmentByte1 >> 5
+		moreFragment := fragmentByte1 >> 6
+
+		ipHead.ForbidFragment = notFragment == 1
+		ipHead.MoreFragments = moreFragment == 1
+
+		binary.Read(reader, binary.BigEndian, &ipHead.TimeToLive)
+		binary.Read(reader, binary.BigEndian, &ipHead.Protocol)
+		binary.Read(reader, binary.BigEndian, &ipHead.HeaderChecksum)
+		binary.Read(reader, binary.BigEndian, &ipHead.Source)
+		binary.Read(reader, binary.BigEndian, &ipHead.Destination)
 
 		if verbose {
 			fmt.Printf("\t\t-- Layer 3 :: IP Header --\n")
@@ -117,16 +136,25 @@ func main() {
 			fmt.Printf("\t\t\tType of Service: %v\n", ipHead.TypeOfService)
 			fmt.Printf("\t\t\tTotal Length: %v\n", ipHead.TotalLength)
 			fmt.Printf("\t\t\tIdentification: %v\n", ipHead.Identification)
-
+			fmt.Printf("\t\t\tForbid Fragment %v\n", ipHead.ForbidFragment)
+			fmt.Printf("\t\t\tMore Fragments %v\n", ipHead.MoreFragments)
+			fmt.Printf("\t\t\tTime to live: %v\n", ipHead.TimeToLive)
+			fmt.Printf("\t\t\tProtocol: %v\n", ipHead.Protocol)
+			fmt.Printf("\t\t\tHeader Checksum: %v\n", ipHead.HeaderChecksum)
+			fmt.Printf("\t\t\tSource: %v\n", formatIP(ipHead.Source))
+			fmt.Printf("\t\t\tDestination: %v\n", formatIP(ipHead.Destination))
 		}
 
-		otherData := make([]byte, packLen-14-1-6)
+		otherData := make([]byte, packLen-14-1-6-2-2-2-4-3)
 		reader.Read(otherData)
 
-//		if count == 4 {
-//			break
-//		}
+		if count == 50 {
+			break
+		}
 	}
 	fmt.Printf("Handled %v packages\n", count)
 	fmt.Printf("%v unique MAC adresses\n", len(m))
+	for ip, _ := range m {
+		fmt.Printf("%v\n", ip)
+	}
 }
