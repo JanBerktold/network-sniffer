@@ -57,6 +57,22 @@ void shutdown_handler(int sig)
 	}
 }
 
+void set_filters(char* dev, pcap_t* descr, bpf_u_int32* netp)
+{
+	struct bpf_program fp;
+	if (pcap_compile(descr, &fp, "tcp", 0, *netp) < 0)
+	{
+		printf("error while compiling\n");
+		exit(-1);
+	}
+
+	if (pcap_setfilter(descr, &fp) < 0) 
+	{
+		printf("error setting filter\n");
+		exit(-1);
+	}
+}
+
 int main(int argc,char **argv)
 {
 	char *dev;
@@ -93,8 +109,10 @@ int main(int argc,char **argv)
 	if(descr == NULL)
 	{
 		printf("pcap_open_live() failed due to [%s]\n", errbuf);
-		return -1;
+		exit(-1);
 	}
+
+	set_filters(dev, descr, &pNet);
 
 	signal(SIGINT, shutdown_handler);
 	signal(SIGKILL, shutdown_handler);
