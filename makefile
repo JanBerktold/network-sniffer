@@ -1,11 +1,13 @@
 CC=gcc
 NAME=program
 FLAGS=-lz -lpcap
+STORAGE=obj
 
 all: $(NAME)
 
-sniffer.o: sniffer.c
+$(STORAGE)/sniffer.o: sniffer.c
 	gcc sniffer.c -c
+	mv *.o $(STORAGE)/
 
-$(NAME): sniffer.o
-	gcc sniffer.o -o $(NAME) $(FLAGS)
+$(NAME): $(STORAGE)/sniffer.o
+	gcc $(STORAGE)/sniffer.o -o $(NAME) $(FLAGS)
