@@ -26,7 +26,7 @@ void flush_data()
 		printf("something went wrong while writing %d", written_bytes);
 		exit(-1);
 	}
-	printf("wrote %d bytes from %d buffer\n", written_bytes, write_progress);
+	printf("wrote %d bytes from %ld buffer\n", written_bytes, gztell(file_handle));
 	write_progress = 0;
 }
 
@@ -60,7 +60,7 @@ void shutdown_handler(int sig)
 void set_filters(char* dev, pcap_t* descr, bpf_u_int32* netp)
 {
 	struct bpf_program fp;
-	if (pcap_compile(descr, &fp, "tcp", 0, *netp) < 0)
+	if (pcap_compile(descr, &fp, "udp", 0, *netp) < 0)
 	{
 		printf("error while compiling\n");
 		exit(-1);
