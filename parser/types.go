@@ -1,12 +1,16 @@
 package main
 
+type ProtocolHeader interface {
+	GetProtocol() uint8
+}
+
 type EthernetHeader struct {
 	Destination, Source []byte
 	Type                uint16
 	//FCS                 int32
 }
 
-type IPHeader struct {
+type IPv4Header struct {
 	Version        byte
 	HeaderLength   byte
 	TypeOfService  int8
@@ -20,4 +24,12 @@ type IPHeader struct {
 	HeaderChecksum uint16
 	Source         uint32
 	Destination    uint32
+}
+
+type UDPHeader struct {
+	NextHeader uint8
+}
+
+func (v IPv4Header) GetProtocol() uint8 {
+	return v.Protocol
 }
